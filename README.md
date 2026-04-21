@@ -11,7 +11,7 @@ This skill keeps a running ledger of your regression estimates so you do not hav
 
 In practice, you log each estimate once, label the outcome and sample, record the estimator and validation checks, and then use the ledger to decide what belongs in the main text, appendix, or should be dropped.
 
-For example, if you run C&S, TWFE, and a placebo for the same dependent variable, the skill stores them as separate rows, lets you compare them side by side, and keeps the narrative tied to the actual evidence rather than memory.
+For example, if you estimate the same dependent variable with C&S and TWFE, and also run a placebo check, the skill stores each result as a separate row, lets you compare them side by side, and keeps the narrative tied to the actual evidence rather than memory.
 
 ## Requirements
 
