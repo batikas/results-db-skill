@@ -1,9 +1,14 @@
 # results-db skill
 [![CI](https://github.com/batikas/results-db-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/batikas/results-db-skill/actions/workflows/ci.yml)
+[![Release](https://github.com/batikas/results-db-skill/actions/workflows/release.yml/badge.svg)](https://github.com/batikas/results-db-skill/actions/workflows/release.yml)
 
 Structured results ledger for empirical research papers.
 
-This skill helps you track, query, and manage regression results so the paper narrative stays aligned with the actual estimates. It is designed for quantitative social-science and economics projects with many specifications, heterogeneity splits, robustness checks, and revision cycles.
+This skill keeps a running ledger of your regression estimates so you do not have to remember which specification produced which result. It is designed for quantitative social-science and economics projects with many specifications, heterogeneity splits, robustness checks, and revision cycles.
+
+In practice, you log each estimate once, label the outcome and sample, record the estimator and validation checks, and then use the ledger to decide what belongs in the main text, appendix, or should be dropped.
+
+For example, if you run C&S, TWFE, and a placebo for the same dependent variable, the skill stores them as separate rows, lets you compare them side by side, and keeps the narrative tied to the actual evidence rather than memory.
 
 ## Requirements
 
@@ -29,6 +34,16 @@ For local development, clone the repo and work from the repository root.
 - Tracks what belongs in the main text, appendix, or should be dropped
 - Records pre-trend and Honest DiD checks
 - Exports summary tables and checks database integrity before submission
+
+## Example
+
+Suppose you estimate the effect of a treatment on a dependent variable with three specifications:
+
+- a main C&S estimate
+- a TWFE robustness check
+- a placebo that should not show an effect
+
+Results-db stores each of those estimates as a separate row. You can mark the main result as `main`, keep the robustness check in `appendix`, move the placebo to `dropped` if it fails validation, and write the paper from the same ledger instead of chasing outputs across files.
 
 ## When to use it
 
