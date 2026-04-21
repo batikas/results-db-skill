@@ -1,0 +1,39 @@
+name: Results DB Lint
+
+on:
+  push:
+    paths:
+      - 'results/results_database.csv'
+      - 'results/**.csv'
+  pull_request:
+    paths:
+      - 'results/results_database.csv'
+      - 'results/**.csv'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install results-db skill
+        run: |
+          mkdir -p ~/.claude/skills/results-db/scripts
+          # Copy skill scripts from repo (if bundled) or install from GitHub
+          if [ -d "skills/results-db/scripts" ]; then
+            cp -r skills/results-db/scripts/* ~/.claude/skills/results-db/scripts/
+          else
+            curl -sSL https://raw.githubusercontent.com/batikas/results-db-skill/main/skills/results-db/scripts/results_db.py \
+              -o ~/.claude/skills/results-db/scripts/results_db.py
+          fi
+
+      - name: Run lint
+        run: |
+          python3 ~/.claude/skills/results-db/scripts/results_db.py \
+            --project . \
+            lint --strict

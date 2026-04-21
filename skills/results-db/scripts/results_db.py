@@ -651,9 +651,13 @@ def cmd_story(args):
                     for hyp_rows in grp.values() for r in hyp_rows]
         forest_plot(all_rows)
 
-    # Optional prose output
-    if getattr(args, "prose", False):
-        _story_prose(sections, section_order)
+    # Optional prose / referee output
+    audience = getattr(args, "audience", "internal") or "internal"
+    if getattr(args, "prose", False) or audience == "referee":
+        if audience == "referee":
+            _story_referee(sections, section_order)
+        else:
+            _story_prose(sections, section_order)
     print()
 
 
@@ -720,6 +724,108 @@ def _story_prose(sections: dict, section_order: list):
 
             para = " ".join(sentences)
             print(f"\n{para}\n")
+
+
+def _story_referee(sections: dict, section_order: list):
+    """
+    Render the story in referee-response framing:
+    'Consistent with H1, we find that X increases by Y% (C&S, p<0.01)...'
+    Only main-text significant results. Null results stated directly.
+    """
+    HYP_LEAD = {
+        "H_market"    : "Consistent with our market-level hypothesis,",
+        "H_package"   : "Consistent with H1,",
+        "H_mechanism" : "Turning to mechanisms,",
+        "H_composition": "Regarding dependency composition,",
+        "H_category"  : "Heterogeneity analysis shows that",
+        "H_org"       : "Organizational heterogeneity analysis reveals that",
+    }
+    NULL_LEAD = {
+        "H_market"    : "We find no significant effect on",
+        "H_package"   : "We do not find significant effects on",
+        "H_mechanism" : "We find no evidence of attention-market concentration in",
+        "H_category"  : "We do not find significant effects on",
+        "H_org"       : "We find no significant difference for",
+    }
+    VERB = {
+        "positive": "increases by",
+        "negative": "decreases by",
+        "neutral" : "changes by",
+    }
+
+    print("\n" + "=" * 72)
+    print("  STORY — REFEREE FRAMING")
+    print("=" * 72 + "\n")
+
+    for sec in section_order + [s for s in sections if s not in section_order]:
+        if sec not in sections:
+            continue
+        print(f"### {sec.title()}\n")
+
+        for hyp, hyp_rows in sections[sec].items():
+            main_sig = sorted(
+                [r for r in hyp_rows
+                 if r.get("in_paper") == "main"
+                 and SIG_ORDER.get(r.get("sig",""), 0) > 0],
+                key=lambda r: -SIG_ORDER.get(r.get("sig",""), 0)
+            )
+            main_null = [r for r in hyp_rows
+                         if r.get("in_paper") == "main"
+                         and SIG_ORDER.get(r.get("sig",""), 0) == 0]
+
+            if not main_sig and not main_null:
+                continue
+
+            lead = HYP_LEAD.get(hyp, f"For {hyp},")
+            parts = []
+
+            for r in main_sig:
+                label = r.get("dv_label") or r.get("dv","")
+                est   = r.get("estimator","")
+                n     = r.get("n","")
+                sig_s = r.get("sig","")
+                try:
+                    att_f = float(r.get("att",""))
+                    pct   = f"{abs(att_f)*100:.1f}\\%"
+                    verb  = VERB["negative"] if att_f < 0 else VERB["positive"]
+                except (ValueError, TypeError):
+                    pct   = str(r.get("att",""))
+                    verb  = VERB["neutral"]
+
+                sample = r.get("sample","")
+                sample_phrase = (f" (among {sample} packages)"
+                                 if sample not in ("Full","Python","R","") else "")
+
+                p_thresh = ""
+                try:
+                    p = float(r.get("p","") or 1)
+                    if p < 0.01: p_thresh = "$p<0.01$"
+                    elif p < 0.05: p_thresh = "$p<0.05$"
+                    elif p < 0.10: p_thresh = "$p<0.10$"
+                except (ValueError, TypeError):
+                    pass
+
+                n_phrase = f", $N={n}$" if n else ""
+                robustness = ""
+                pt = r.get("pre_trend_test","")
+                if pt:
+                    robustness = f" Randomization inference confirms this result ({pt})."
+
+                parts.append(
+                    f"\\textit{{{label}}}{sample_phrase} {verb} "
+                    f"{pct}{sig_s} ({est}{n_phrase}{', ' + p_thresh if p_thresh else ''})."
+                    f"{robustness}"
+                )
+
+            if main_null:
+                null_lead = NULL_LEAD.get(hyp, "We find no significant effect on")
+                null_labels = ", ".join(
+                    r.get("dv_label") or r.get("dv","") for r in main_null
+                )
+                parts.append(f"{null_lead} {null_labels}.")
+
+            para = f"{lead} " + " ".join(parts)
+            print(para + "\n")
 
 
 def cmd_referee(args):
@@ -872,6 +978,28 @@ def cmd_status(args):
         print("\nBy paper version:")
         for pv, count in sorted(by_pv.items(), key=lambda x: -x[1]):
             print(f"  {pv:20s} {count:4d}")
+
+    # ── Hypothesis coverage matrix ─────────────────────────────────────────────
+    placements = ["main","appendix","tbd","dropped"]
+    hyps = sorted({r.get("hypothesis","?") for r in rows if r.get("hypothesis")})
+    if hyps:
+        print("\nHypothesis coverage matrix:")
+        col_w = 10
+        header = f"  {'Hypothesis':<20}" + "".join(f"{p:>{col_w}}" for p in placements)
+        print(header)
+        print("  " + "─" * (20 + col_w * len(placements)))
+        for hyp in hyps:
+            hyp_rows = [r for r in rows if r.get("hypothesis") == hyp]
+            cells = [f"  {hyp:<20}"]
+            any_tbd = False
+            for p in placements:
+                count = sum(1 for r in hyp_rows if r.get("in_paper") == p)
+                cells.append(f"{count if count else '·':>{col_w}}")
+                if p == "tbd" and count:
+                    any_tbd = True
+            flag = "  ⚠" if any_tbd else ""
+            print("".join(cells) + flag)
+
     tbd = by_status.get("tbd",0)
     if tbd:
         print(f"\n⚠  {tbd} result(s) still need a placement decision (in_paper = tbd)")
@@ -934,8 +1062,123 @@ def cmd_export(args):
         print(r"\end{tabular}")
         return
 
-    print(f"Unknown format '{fmt}'. Use: md, latex, csv.", file=sys.stderr)
+    if fmt == "referee-response":
+        _export_referee_response(rows, args)
+        return
+
+    print(f"Unknown format '{fmt}'. Use: md, latex, csv, referee-response.", file=sys.stderr)
     sys.exit(1)
+
+
+def _export_referee_response(rows, args):
+    """Structured Markdown doc ready to paste into a referee response letter."""
+    main_rows    = [r for r in rows if r.get("in_paper") == "main"]
+    appendix_rows= [r for r in rows if r.get("in_paper") == "appendix"]
+    ri_rows      = [r for r in rows if r.get("estimator") == "RI"]
+    hdid_rows    = [r for r in rows if "Honest DiD" in (r.get("estimator","") or "")]
+
+    section_order = ["market","package","mechanism","heterogeneity",
+                     "robustness","welfare","replication"]
+
+    def md_table(rows_to_show, cols):
+        header = "| " + " | ".join(c for c,_ in cols) + " |"
+        sep    = "| " + " | ".join("---" for _ in cols) + " |"
+        lines  = [header, sep]
+        for r in rows_to_show:
+            cells = []
+            for _, getter in cols:
+                cells.append(str(getter(r))[:40])
+            lines.append("| " + " | ".join(cells) + " |")
+        return "\n".join(lines)
+
+    now = datetime.now().strftime("%Y-%m-%d")
+    print(f"# Referee Response — Results Summary\n")
+    print(f"*Generated {now} from results database ({len(rows)} total estimates)*\n")
+    print("---\n")
+
+    # 1. Main results by section
+    print("## Main Text Results\n")
+    by_sec = defaultdict(list)
+    for r in main_rows:
+        by_sec[r.get("section","other")].append(r)
+
+    for sec in section_order + [s for s in by_sec if s not in section_order]:
+        if sec not in by_sec:
+            continue
+        print(f"### {sec.title()}\n")
+        cols = [
+            ("Outcome",   lambda r: r.get("dv_label") or r.get("dv","")),
+            ("Sample",    lambda r: r.get("sample","")),
+            ("Estimator", lambda r: r.get("estimator","")),
+            ("ATT",       lambda r: fmt_float(r.get("att"),4)),
+            ("SE",        lambda r: fmt_float(r.get("se"),4)),
+            ("p",         lambda r: fmt_float(r.get("p"),3)),
+            ("Sig",       lambda r: r.get("sig","")),
+            ("N",         lambda r: str(r.get("n",""))),
+            ("Notes",     lambda r: (r.get("notes","") or "")[:60]),
+        ]
+        print(md_table(by_sec[sec], cols))
+        print()
+
+    # 2. Robustness summary
+    print("---\n")
+    print("## Robustness Checks\n")
+
+    if ri_rows:
+        print("### Randomization Inference (shifted placebo dates)\n")
+        ri_cols = [
+            ("Outcome",   lambda r: r.get("dv_label") or r.get("dv","")),
+            ("Sample",    lambda r: r.get("sample","")),
+            ("RI result", lambda r: r.get("pre_trend_test","")),
+            ("Pass?",     lambda r: r.get("pre_trend_pass","")),
+            ("Notes",     lambda r: (r.get("notes","") or "")[:60]),
+        ]
+        print(md_table(ri_rows, ri_cols))
+        print()
+
+    if hdid_rows:
+        print("### Honest DiD (Rambachan & Roth 2023)\n")
+        hdid_cols = [
+            ("Outcome",   lambda r: r.get("dv_label") or r.get("dv","")),
+            ("Sample",    lambda r: r.get("sample","")),
+            ("M breakdown", lambda r: r.get("honest_did_m","")),
+            ("Pass?",     lambda r: r.get("honest_did_pass","")),
+            ("Notes",     lambda r: (r.get("notes","") or "")[:60]),
+        ]
+        print(md_table(hdid_rows, hdid_cols))
+        print()
+
+    # 3. Appendix summary
+    print("---\n")
+    print("## Appendix Results (summary)\n")
+    app_sig = [r for r in appendix_rows
+               if SIG_ORDER.get(r.get("sig",""),0) > 0]
+    app_null = [r for r in appendix_rows
+                if SIG_ORDER.get(r.get("sig",""),0) == 0]
+    print(f"- {len(appendix_rows)} total appendix estimates: "
+          f"{len(app_sig)} significant, {len(app_null)} null\n")
+    if app_sig:
+        app_cols = [
+            ("Outcome",   lambda r: r.get("dv_label") or r.get("dv","")),
+            ("Sample",    lambda r: r.get("sample","")),
+            ("Estimator", lambda r: r.get("estimator","")),
+            ("ATT",       lambda r: fmt_float(r.get("att"),4)),
+            ("Sig",       lambda r: r.get("sig","")),
+            ("Notes",     lambda r: (r.get("notes","") or "")[:50]),
+        ]
+        print(md_table(app_sig, app_cols))
+        print()
+
+    # 4. Model specs
+    specs = sorted({r.get("model_spec","") for r in rows if r.get("model_spec")})
+    if specs:
+        print("---\n")
+        print("## Model Specifications Referenced\n")
+        for s in specs:
+            langs = sorted({r.get("language","") for r in rows
+                            if r.get("model_spec") == s and r.get("language")})
+            print(f"- **{s}**" + (f" [{', '.join(langs)}]" if langs else ""))
+        print()
 
 
 def cmd_sync(args):
@@ -1465,6 +1708,90 @@ if __name__ == "__main__":
     print(f"Edit the rows, then run: python {out_path} --project /path/to/project")
 
 
+def cmd_watch(args):
+    """
+    Watch a directory for new/changed CSV files and auto-ingest into DB.
+    Polls every --interval seconds (default 30). Ctrl-C to stop.
+    Equivalent to running `sync --apply` on each new file detected.
+    """
+    import time
+    import hashlib
+
+    path       = db_path(args)
+    project    = Path(getattr(args, "project", "."))
+    source_dir = Path(getattr(args, "source_dir", None) or
+                      (project / "results" / "tables"))
+    interval   = int(getattr(args, "interval", None) or 30)
+
+    if not source_dir.exists():
+        print(f"Watch directory not found: {source_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    def file_sig(p: Path) -> str:
+        try:
+            return f"{p.stat().st_mtime:.0f}:{p.stat().st_size}"
+        except OSError:
+            return ""
+
+    # Build initial snapshot
+    seen = {}
+    for p in source_dir.glob("*.csv"):
+        seen[p] = file_sig(p)
+
+    print(f"Watching {source_dir}  (interval={interval}s)  Ctrl-C to stop\n")
+
+    try:
+        while True:
+            time.sleep(interval)
+            changed = []
+            current = {p: file_sig(p) for p in source_dir.glob("*.csv")}
+            for p, sig_now in current.items():
+                if seen.get(p) != sig_now:
+                    changed.append(p)
+            seen = current
+
+            if not changed:
+                continue
+
+            ts = datetime.now().strftime("%H:%M:%S")
+            print(f"\n[{ts}] {len(changed)} file(s) changed:")
+            for p in changed:
+                print(f"  {p.name}")
+
+            # Run sync --apply on each changed file
+            rows = load_db(path)
+            db_keys = {(r.get("dv",""), r.get("sample",""), r.get("estimator",""))
+                       for r in rows}
+
+            added_total = 0
+            for csv_path in changed:
+                parsed = detect_and_parse(csv_path)
+                new_ones = [e for e in parsed
+                            if (e.get("dv",""), e.get("sample",""), e.get("estimator",""))
+                            not in db_keys]
+                if not new_ones:
+                    print(f"  {csv_path.name}: no new estimates detected")
+                    continue
+                for e in new_ones:
+                    next_rid = next_id(rows)
+                    row = {col: "" for col in COLUMNS}
+                    row.update(e)
+                    row["id"]         = next_rid
+                    row["in_paper"]   = "tbd"
+                    row["source_csv"] = str(csv_path)
+                    rows.append(row)
+                    db_keys.add((row["dv"], row["sample"], row["estimator"]))
+                    added_total += 1
+                    print(f"  + {row['dv']} [{row['sample']}]  ATT={row['att']} {row['sig']}")
+
+            if added_total:
+                save_db(path, rows)
+                print(f"  → Ingested {added_total} new estimate(s) into {path.name}")
+
+    except KeyboardInterrupt:
+        print("\nWatch stopped.")
+
+
 # ── Argument parser ───────────────────────────────────────────────────────────
 
 def build_parser():
@@ -1515,13 +1842,16 @@ def build_parser():
     st.add_argument("--section"); st.add_argument("--in_paper")
     st.add_argument("--forest", action="store_true", help="Show ASCII forest plot")
     st.add_argument("--prose", action="store_true", help="Render as LaTeX-ready draft paragraphs")
+    st.add_argument("--audience", choices=["internal","referee"], default="internal",
+                    help="'referee' writes 'Consistent with H1, we find...' framing")
 
     # status
     sub.add_parser("status")
 
     # export
     ex = sub.add_parser("export")
-    ex.add_argument("--format", default="md", choices=["md","latex","csv"])
+    ex.add_argument("--format", default="md",
+                    choices=["md","latex","csv","referee-response"])
     for f in ["section","in_paper","estimator","dv","sample","sig"]:
         ex.add_argument(f"--{f}")
 
@@ -1564,6 +1894,13 @@ def build_parser():
     hi = sub.add_parser("history")
     hi.add_argument("--id"); hi.add_argument("--dv")
 
+    # watch
+    wa = sub.add_parser("watch")
+    wa.add_argument("--source-dir", dest="source_dir",
+                    help="Directory to watch (default: <project>/results/tables)")
+    wa.add_argument("--interval", type=int, default=30,
+                    help="Poll interval in seconds (default: 30)")
+
     # template
     tm = sub.add_parser("template")
     tm.add_argument("--paper-name", dest="paper_name", default="mypaper")
@@ -1593,6 +1930,7 @@ def main():
         "referee" : cmd_referee,
         "diff"    : cmd_diff,
         "history" : cmd_history,
+        "watch"   : cmd_watch,
         "template": cmd_template,
     }
     dispatch[args.command](args)
