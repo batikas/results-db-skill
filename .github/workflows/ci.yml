@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Syntax-check Python scripts
+        run: python -m compileall -q skills/results-db/scripts scripts
+
+      - name: Check release metadata consistency
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          root = Path(".")
+          version = (root / "VERSION").read_text(encoding="utf-8").strip()
+          plugin = json.loads((root / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+          citation = (root / "CITATION.cff").read_text(encoding="utf-8")
+
+          cff_version = ""
+          preferred_version = ""
+          in_preferred = False
+          for line in citation.splitlines():
+              if line.startswith("version:") and not cff_version:
+                  cff_version = line.split(":", 1)[1].strip()
+              elif line.startswith("preferred-citation:"):
+                  in_preferred = True
+              elif in_preferred and line.startswith("  version:"):
+                  preferred_version = line.split(":", 1)[1].strip()
+                  break
+
+          errors = []
+          if plugin.get("version") != version:
+              errors.append(f"plugin.json version {plugin.get('version')} != VERSION {version}")
+          if cff_version != version:
+              errors.append(f"CITATION.cff version {cff_version} != VERSION {version}")
+          if preferred_version != version:
+              errors.append(f"CITATION.cff preferred citation version {preferred_version} != VERSION {version}")
+
+          if errors:
+              print("\n".join(errors))
+              sys.exit(1)
+
+          print(f"Version metadata consistent at {version}")
+          PY
+
+      - name: Validate markdown structure
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+
+          md_files = sorted(
+              p for p in Path(".").rglob("*.md")
+              if ".git" not in p.parts and ".venv" not in p.parts
+          )
+
+          errors = []
+          for path in md_files:
+              text = path.read_text(encoding="utf-8")
+              stripped = text.lstrip()
+              if not (stripped.startswith("#") or stripped.startswith("---")):
+                  errors.append(f"{path}: missing top-level heading")
+              if text.count("```") % 2:
+                  errors.append(f"{path}: unbalanced fenced code blocks")
+              for lineno, line in enumerate(text.splitlines(), start=1):
+                  if line.rstrip() != line:
+                      errors.append(f"{path}:{lineno}: trailing whitespace")
+
+          if errors:
+              print("\n".join(errors))
+              sys.exit(1)
+
+          print(f"Validated {len(md_files)} markdown files")
+          PY
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -q

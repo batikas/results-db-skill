@@ -1,0 +1,10 @@
+{
+  "name": "results-db",
+  "description": "Structured results ledger for empirical research papers",
+  "author": {
+    "name": "Michail Batikas",
+    "email": "mpatikas@gmail.com"
+  },
+  "version": "1.0.0",
+  "homepage": "https://github.com/batikas/results-db-skill"
+}

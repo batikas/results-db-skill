@@ -1,0 +1,3 @@
+dv,dv_label,sample,att,se,p,n,section,hypothesis,estimator,in_paper,language,model_spec,table_file,figure_file,notes
+delta_num_as_dep,Δ Downstream (monthly flow),DepQ4,0.2194,0.0789,0.007,24336,package,H1,C&S,main,Python,"C&S DiD, pkg+month FE, HC1 SEs",results/tables/downstream_table_all_estimators_by_dep_quartile_py.tex,,"Worked example row"
+log_fork_count,Forks (log),Full,0.0257,0.0067,0.000,97272,mechanism,H2,C&S,main,Python,"C&S DiD, pkg+month FE, HC1 SEs",results/tables/fork_table_full.tex,,"Another example row"

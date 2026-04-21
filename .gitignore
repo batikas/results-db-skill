@@ -1,0 +1,10 @@
+.DS_Store
+__pycache__/
+*.pyc
+*.log
+results/results_database.csv
+results/results_history.csv
+results/*.db
+results/*.sqlite
+dist/
+*.skill
