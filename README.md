@@ -2,6 +2,8 @@
 [![CI](https://github.com/batikas/results-db-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/batikas/results-db-skill/actions/workflows/ci.yml)
 [![Release](https://github.com/batikas/results-db-skill/actions/workflows/release.yml/badge.svg)](https://github.com/batikas/results-db-skill/actions/workflows/release.yml)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/github/license/batikas/results-db-skill)](LICENSE)
+[![Citation](https://img.shields.io/badge/Citation-CITATION.cff-0A0A0A?logo=readthedocs&logoColor=white)](CITATION.cff)
 
 Structured results ledger for empirical research papers.
 
