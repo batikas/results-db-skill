@@ -73,6 +73,6 @@ claude plugin install github:batikas/results-db-skill
 - Installation
 - Quick start (init + add + story)
 - Full command reference
-- Schema reference  
+- Schema reference
 - Example: populating from existing CSV outputs
 - Design philosophy (one row per estimate, log nulls too)
