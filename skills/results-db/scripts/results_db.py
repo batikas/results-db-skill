@@ -650,7 +650,197 @@ def cmd_story(args):
         all_rows = [r for grp in sections.values()
                     for hyp_rows in grp.values() for r in hyp_rows]
         forest_plot(all_rows)
+
+    # Optional prose output
+    if getattr(args, "prose", False):
+        _story_prose(sections, section_order)
     print()
+
+
+def _story_prose(sections: dict, section_order: list):
+    """Render the story as LaTeX-ready prose paragraphs."""
+    DIRECTION = {
+        "delta_num_as_dep": "increases",   "num_as_dependency": "increases",
+        "new_dependents_added": "increases","log_fork_count": "increases",
+        "hhi": "increases",                 "entropy": "decreases",
+        "gini": "decreases",
+    }
+
+    print("\n" + "=" * 72)
+    print("  STORY — PROSE MODE (LaTeX-ready draft)")
+    print("=" * 72)
+
+    for sec in section_order + [s for s in sections if s not in section_order]:
+        if sec not in sections:
+            continue
+        print(f"\n%% ── {sec.upper()} ─────────────────────────────────────────")
+
+        for hyp, hyp_rows in sections[sec].items():
+            main_sig = [r for r in hyp_rows
+                        if r.get("in_paper") == "main"
+                        and SIG_ORDER.get(r.get("sig",""), 0) > 0]
+            main_null = [r for r in hyp_rows
+                         if r.get("in_paper") == "main"
+                         and SIG_ORDER.get(r.get("sig",""), 0) == 0]
+
+            if not main_sig and not main_null:
+                continue
+
+            sentences = []
+
+            # Lead with the strongest result
+            lead = sorted(main_sig, key=lambda r: -SIG_ORDER.get(r.get("sig",""),0))
+            for r in lead:
+                label  = r.get("dv_label") or r.get("dv","")
+                sample = r.get("sample","")
+                att    = r.get("att","")
+                sig_s  = r.get("sig","")
+                est    = r.get("estimator","")
+                n      = r.get("n","")
+                try:
+                    pct = f"{float(att)*100:.1f}\\%"
+                except (ValueError, TypeError):
+                    pct = str(att)
+                sample_phrase = f" among {sample} packages" if sample not in ("Full","Python","R") else ""
+                n_phrase = f" ($N={n}$)" if n else ""
+                direction = DIRECTION.get(r.get("dv",""), "changes by")
+                sentences.append(
+                    f"{label}{sample_phrase} {direction} by {pct}{sig_s}"
+                    f" ({est}{n_phrase})."
+                )
+
+            # Null results
+            if main_null:
+                null_labels = ", ".join(
+                    r.get("dv_label") or r.get("dv","") for r in main_null
+                )
+                sentences.append(
+                    f"We find no significant effect on {null_labels}."
+                )
+
+            para = " ".join(sentences)
+            print(f"\n{para}\n")
+
+
+def cmd_referee(args):
+    """Match referee comment text to DB entries and show a checklist."""
+    comment = getattr(args, "comment", None) or ""
+    comment_file = getattr(args, "file", None)
+
+    if comment_file:
+        comment = Path(comment_file).read_text(encoding="utf-8")
+
+    if not comment:
+        print("Provide --comment 'text' or --file path/to/comment.txt")
+        return
+
+    rows = load_db(db_path(args))
+    comment_lower = comment.lower()
+
+    # Build a keyword index: (dv, dv_label, sample, section, hypothesis, estimator, notes)
+    matched = []
+    for r in rows:
+        searchable = " ".join([
+            r.get("dv",""), r.get("dv_label",""), r.get("sample",""),
+            r.get("section",""), r.get("hypothesis",""), r.get("estimator",""),
+            r.get("notes",""), r.get("model_spec",""),
+        ]).lower()
+        # Score: count how many words from the comment appear in this row's metadata
+        words = [w for w in comment_lower.split() if len(w) > 3]
+        score = sum(1 for w in words if w in searchable)
+        if score > 0:
+            matched.append((score, r))
+
+    matched.sort(key=lambda x: -x[0])
+
+    print("\n" + "=" * 72)
+    print("  REFEREE RESPONSE CHECKLIST")
+    print("=" * 72)
+    print(f"\nComment ({len(comment.split())} words):\n")
+    # Print first 300 chars of comment
+    preview = comment[:300].replace("\n"," ")
+    print(f"  \"{preview}{'...' if len(comment)>300 else ''}\"\n")
+
+    if not matched:
+        print("No DB entries match the keywords in this comment.")
+        print("You may need to add new estimates for this comment's request.")
+        return
+
+    print(f"  {'Score':<6} {'ID':<5} {'DV':<26} {'Sample':<14} "
+          f"{'Estimator':<10} {'In Paper':<10} Notes")
+    print("  " + "─" * 85)
+    for score, r in matched[:15]:
+        notes_s = (r.get("notes","") or "")[:30]
+        print(f"  {score:<6} {r.get('id',''):<5} "
+              f"{(r.get('dv_label') or r.get('dv',''))[:26]:<26} "
+              f"{r.get('sample','')[:14]:<14} "
+              f"{r.get('estimator',''):<10} "
+              f"{r.get('in_paper',''):<10} "
+              f"{notes_s}")
+
+    print(f"\n{len(matched)} result(s) matched. Top {min(15,len(matched))} shown.")
+    print("\nNext steps:")
+    print("  1. Decide which matched results need to be re-run or updated.")
+    print("  2. Run: results_db.py update --id <ID> --referee_round R1 --notes '<action taken>'")
+    print("  3. Run: results_db.py lint to check everything is clean before responding.")
+
+
+def cmd_diff(args):
+    """Compare DB state between two referee rounds (using change history)."""
+    hp = hist_path(db_path(args))
+    if not hp.exists():
+        print("No change history found. Run some updates first.")
+        return
+
+    round_a = getattr(args, "round_a", None) or "original"
+    round_b = getattr(args, "round_b", None)
+
+    with open(hp, newline="", encoding="utf-8") as f:
+        hist_rows = list(csv.DictReader(f))
+
+    # Filter to field changes between rounds
+    relevant = [r for r in hist_rows
+                if r.get("field_changed") in
+                   ("att","se","p","sig","in_paper","notes","pre_trend_pass","honest_did_pass")]
+
+    if round_b:
+        relevant = [r for r in relevant
+                    if round_b.lower() in (r.get("new_value","") or "").lower()
+                    or round_a.lower() in (r.get("old_value","") or "").lower()]
+
+    if not relevant:
+        # Show all changes grouped by result
+        relevant = hist_rows
+
+    by_result = defaultdict(list)
+    for r in relevant:
+        key = (r.get("row_id",""), r.get("dv",""), r.get("sample",""))
+        by_result[key].append(r)
+
+    db_rows = {str(r.get("id","")): r for r in load_db(db_path(args))}
+
+    print("\n" + "=" * 72)
+    round_b_label = round_b or "latest"
+    print(f"  DIFF: {round_a} → {round_b_label}")
+    print("=" * 72)
+
+    changed_count = 0
+    for (row_id, dv, sample), changes in sorted(by_result.items()):
+        db_r = db_rows.get(str(row_id), {})
+        label = db_r.get("dv_label") or dv
+        print(f"\n  ID={row_id}  {label} [{sample}]  (currently: {db_r.get('in_paper','')})")
+        for ch in changes:
+            ts = ch.get("changed_at","")[:16]
+            field = ch.get("field_changed","")
+            old   = ch.get("old_value","")
+            new   = ch.get("new_value","")
+            marker = "⚠ " if field in ("sig","in_paper","pre_trend_pass","honest_did_pass") else "  "
+            print(f"    {marker}{ts}  {field}: {old!r} → {new!r}")
+        changed_count += 1
+
+    print(f"\n{changed_count} result(s) changed since tracking began.")
+    if not round_b:
+        print("Tip: use --round-a original --round-b R1 to filter by referee round field.")
 
 
 def cmd_status(args):
@@ -1105,6 +1295,8 @@ def cmd_lint(args):
         if warns:  summary.append(f"{len(warns)} warning(s)")
         if tbd_count: summary.append(f"{tbd_count} tbd")
         print(f"Summary: {', '.join(summary)}")
+        if getattr(args, "strict", False):
+            sys.exit(1)   # non-zero exit for Makefile / pre-commit hooks
 
 
 def cmd_history(args):
@@ -1322,6 +1514,7 @@ def build_parser():
     st = sub.add_parser("story")
     st.add_argument("--section"); st.add_argument("--in_paper")
     st.add_argument("--forest", action="store_true", help="Show ASCII forest plot")
+    st.add_argument("--prose", action="store_true", help="Render as LaTeX-ready draft paragraphs")
 
     # status
     sub.add_parser("status")
@@ -1351,7 +1544,21 @@ def build_parser():
     co.add_argument("--sample")
 
     # lint
-    sub.add_parser("lint")
+    li = sub.add_parser("lint")
+    li.add_argument("--strict", action="store_true",
+                    help="Exit nonzero if any warnings/errors (for Makefile/pre-commit)")
+
+    # referee
+    rf = sub.add_parser("referee")
+    rf.add_argument("--comment", help="Referee comment text (quoted)")
+    rf.add_argument("--file", help="Path to a text file containing the comment")
+
+    # diff
+    di = sub.add_parser("diff")
+    di.add_argument("--round-a", dest="round_a", default="original",
+                    help="Base referee round (default: original)")
+    di.add_argument("--round-b", dest="round_b",
+                    help="Target referee round (e.g. R1, R2)")
 
     # history
     hi = sub.add_parser("history")
@@ -1383,6 +1590,8 @@ def main():
         "check"   : cmd_check,
         "compare" : cmd_compare,
         "lint"    : cmd_lint,
+        "referee" : cmd_referee,
+        "diff"    : cmd_diff,
         "history" : cmd_history,
         "template": cmd_template,
     }
