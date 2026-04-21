@@ -2,7 +2,7 @@
 """
 Example: populate a results database from your own project's CSV outputs.
 
-Adapt this to your project — replace paths, DVs, and estimates.
+Adapt this to your project — replace DVs, samples, and estimates.
 Run once after your main analysis is complete:
 
   python populate_example.py --project /path/to/your/project
@@ -33,7 +33,11 @@ def sig(p):
 
 def r(section, hypothesis, estimator, dv, dv_label, sample,
       att, se, p_val, n, in_paper="tbd",
-      table_file="", figure_file="", notes=""):
+      language="", model_spec="",
+      pre_trend_test="", pre_trend_pass="",
+      honest_did_m="", honest_did_pass="",
+      paper_version="", referee_round="original",
+      table_file="", figure_file="", source_csv="", notes=""):
     global _id
     _id += 1
     return {
@@ -52,42 +56,101 @@ def r(section, hypothesis, estimator, dv, dv_label, sample,
         "ci_lo": "",
         "ci_hi": "",
         "in_paper": in_paper,
+        "paper_version": paper_version,
+        "referee_round": referee_round,
+        "language": language,
+        "model_spec": model_spec,
+        "pre_trend_test": pre_trend_test,
+        "pre_trend_pass": pre_trend_pass,
+        "honest_did_m": honest_did_m,
+        "honest_did_pass": honest_did_pass,
         "table_file": table_file,
         "figure_file": figure_file,
+        "source_csv": source_csv,
         "notes": notes,
     }
 
 
+# Shared model spec constants — define once, reuse across rows
+TWFE_SPEC = "TWFE, unit+time FE, clustered SE"
+CS_SPEC   = "C&S DiD, unit+time FE, HC-robust SE"
+
 # ── Add your results here ─────────────────────────────────────────────────────
-# One call to r() per estimate. Typical pattern:
-#
-#   r(section, hypothesis, estimator, dv, dv_label, sample,
-#     att, se, p_val, n, in_paper, table_file, figure_file, notes)
+# One call to r() per estimate (one DV × one sample × one estimator).
+# A table with 4 subgroup splits = 4 rows. A table with 3 estimators = 3 rows.
 
 rows += [
-    # Example: DiD estimate for main outcome
-    r("market", "H1", "TWFE",
-      "hhi", "HHI (market concentration)", "Treated vs Control",
-      att=1.23, se=0.45, p_val=0.007, n=144,
+
+    # ── Main results ──────────────────────────────────────────────────────────
+
+    # Primary DiD estimate — full sample
+    r("main", "H1", "TWFE",
+      "log_outcome", "Log Outcome", "Full",
+      att=0.142, se=0.031, p_val=0.000, n=12400,
       in_paper="main",
-      table_file="results/tables/market_did.tex",
+      language="R", model_spec=TWFE_SPEC,
+      pre_trend_test="event study F p=0.61", pre_trend_pass="pass",
+      honest_did_m="0.025", honest_did_pass="pass",
+      table_file="results/tables/main_twfe.tex",
       notes=""),
 
-    # Example: robustness check
+    # Primary DiD estimate — treated subgroup (top quartile)
+    r("main", "H1", "TWFE",
+      "log_outcome", "Log Outcome", "Treated Q4",
+      att=0.219, se=0.052, p_val=0.000, n=3100,
+      in_paper="main",
+      language="R", model_spec=TWFE_SPEC,
+      pre_trend_test="event study F p=0.43", pre_trend_pass="pass",
+      honest_did_m="0.031", honest_did_pass="pass",
+      table_file="results/tables/main_twfe.tex",
+      notes=""),
+
+    # ── Robustness ────────────────────────────────────────────────────────────
+
+    # Alternative estimator — C&S
     r("robustness", "H1", "C&S",
-      "hhi", "HHI (market concentration)", "Treated vs Control",
-      att=1.18, se=0.52, p_val=0.024, n=144,
+      "log_outcome", "Log Outcome", "Full",
+      att=0.138, se=0.029, p_val=0.000, n=12400,
       in_paper="appendix",
-      table_file="results/tables/market_did_cs.tex",
+      language="Python", model_spec=CS_SPEC,
+      pre_trend_test="RI p=0.02", pre_trend_pass="pass",
+      table_file="results/tables/robustness_cs.tex",
       notes="C&S confirms TWFE"),
 
-    # Example: null result (still log it!)
+    # Randomization inference
+    r("robustness", "H1", "RI",
+      "log_outcome", "Log Outcome", "Full",
+      att=0.142, se=0.031, p_val=0.000, n=12400,
+      in_paper="appendix",
+      language="R", model_spec="500 permutations, sharp null",
+      pre_trend_test="", pre_trend_pass="",
+      table_file="results/tables/robustness_ri.tex",
+      notes="RI p = 0.002, 500 permutations"),
+
+    # ── Mechanism ─────────────────────────────────────────────────────────────
+
+    # Mechanism test — null result (still log it!)
     r("mechanism", "H2", "TWFE",
-      "attention_hhi", "Attention Market HHI", "Treated vs Control",
-      att=0.03, se=0.18, p_val=0.87, n=144,
+      "log_mediator", "Log Mediator", "Full",
+      att=0.03, se=0.18, p_val=0.87, n=12400,
       in_paper="main",
-      notes="Null supports social-attention mechanism is absent"),
+      language="R", model_spec=TWFE_SPEC,
+      pre_trend_test="event study F p=0.78", pre_trend_pass="pass",
+      notes="Null — mechanism operates through a different channel"),
+
+    # ── Dropped results ───────────────────────────────────────────────────────
+
+    # A result that didn't survive pre-trend check
+    r("heterogeneity", "H1", "TWFE",
+      "log_secondary", "Log Secondary Outcome", "Control",
+      att=0.08, se=0.11, p_val=0.47, n=9300,
+      in_paper="dropped",
+      language="R", model_spec=TWFE_SPEC,
+      pre_trend_test="event study F p=0.003", pre_trend_pass="fail",
+      notes="Pre-trend not parallel — removed from paper"),
+
 ]
+
 
 # ── Write ─────────────────────────────────────────────────────────────────────
 

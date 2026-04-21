@@ -67,14 +67,15 @@ Claude reads the skill description and invokes it automatically when you are wor
 - *"What results do we have for the mechanism section?"*
 - *"What's still tbd?"*
 - *"Which results are going in the main text?"*
-- *"What did we find for the forks DV?"*
+- *"What did we find for the main outcome?"*
 - *"Is the IV result significant?"*
 - *"Show me what's in the appendix"*
 - *"What do we have for the full sample?"*
-- *"Which results use the C&S estimator?"*
+- *"Which results use the TWFE estimator?"*
 - *"What's the ATT for the top-quartile subsample?"*
 - *"Are there any null results we logged?"*
 - *"What did we drop and why?"*
+- *"Show me everything in the heterogeneity section"*
 
 **Pre-trends and validation**
 - *"Did the parallel trends pass for the treated group?"*
@@ -84,6 +85,7 @@ Claude reads the skill description and invokes it automatically when you are wor
 - *"Do any main results have honest_did_pass = fail?"*
 - *"What's the Honest DiD breakdown M for the mechanism result?"*
 - *"Which estimates need a placebo test before submission?"*
+- *"What pre-trend tests have we run so far?"*
 
 **Narrative and writing**
 - *"Give me the story of the main findings"*
@@ -94,15 +96,17 @@ Claude reads the skill description and invokes it automatically when you are wor
 - *"Write the paragraph for the referee response on robustness"*
 - *"Give me a forest plot of the main results"*
 - *"What's the referee-ready summary of our findings?"*
+- *"Draft the heterogeneity results paragraph"*
 
 **Logging and updating**
 - *"Log the new IV result"*
-- *"Add the PPML robustness check result"*
+- *"Add the PPML robustness check"*
 - *"We just ran the RI test — update the main row"*
-- *"Mark the HHI result as appendix"*
-- *"Drop the Gini result — placebo failed"*
+- *"Mark the concentration result as appendix"*
+- *"Drop the secondary outcome — placebo failed"*
 - *"Log this as conditional — pre-trend is borderline"*
 - *"The new spec changed the ATT — update row 17"*
+- *"We're adding a subgroup check — add it as tbd"*
 
 **Referee and revision**
 - *"The referee asked about randomization inference"*
@@ -110,18 +114,21 @@ Claude reads the skill description and invokes it automatically when you are wor
 - *"What changed between the original submission and R1?"*
 - *"Find all results relevant to the referee's comment about parallel trends"*
 - *"Generate the referee response document"*
+- *"What new results do we need to add for R2?"*
 
 **Quality control**
 - *"Run the integrity checks before we submit"*
 - *"Is anything broken in the results DB?"*
 - *"Are there any sig/p mismatches?"*
 - *"Are there duplicates in the main text?"*
+- *"Check that all table files still exist on disk"*
 
 **Overview and hypothesis coverage**
 - *"Give me the big picture before I start writing"*
 - *"What's the coverage of our hypotheses?"*
 - *"Which hypotheses don't have a main result yet?"*
 - *"Are H1 and H2 both covered in the main text?"*
+- *"How many results are we showing per section?"*
 
 ---
 
@@ -134,12 +141,12 @@ One row per estimate — one DV × one sample × one estimator.
 | Field | Values | Description |
 |---|---|---|
 | `id` | integer | Auto-incremented row ID |
-| `section` | `intro` `main` `mechanism` `heterogeneity` `robustness` `welfare` `appendix` or any label | Paper section |
-| `hypothesis` | `H1` `H2a` free text | Which hypothesis this tests |
-| `estimator` | `C&S` `TWFE` `IV` `OLS` `ITS` `RI` `Honest DiD` … | Estimator used |
+| `section` | `main` `mechanism` `heterogeneity` `robustness` `welfare` `replication` or any label | Paper section |
+| `hypothesis` | `H1` `H2a` `H_mechanism` free text | Which hypothesis this tests |
+| `estimator` | `TWFE` `C&S` `IV` `OLS` `ITS` `SDiD` `RI` `Honest DiD` … | Estimator used |
 | `dv` | string | Outcome variable (machine-readable column name) |
 | `dv_label` | string | Human-readable outcome label for display |
-| `sample` | `Full` `Treated` `Control` `Q4` `Subgroup A` … | Sample / subgroup |
+| `sample` | `Full` `Treated` `Control` `High intensity` `Subgroup A` … | Sample / subgroup |
 | `att` | float | Point estimate (ATT or coefficient) |
 | `se` | float | Standard error |
 | `p` | float | p-value |
