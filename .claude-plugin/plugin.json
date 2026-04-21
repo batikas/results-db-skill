@@ -1,0 +1,10 @@
+{
+  "name": "results-db",
+  "description": "Structured results ledger for empirical research papers — track every regression estimate, decide what goes in the paper, and never forget a result between sessions.",
+  "author": {
+    "name": "Michail Batikas",
+    "email": "mpatikas@gmail.com"
+  },
+  "version": "1.0.0",
+  "homepage": "https://github.com/mbatikas/results-db-skill"
+}
