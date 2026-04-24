@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added Claude Code marketplace metadata and a root `.claude-plugin/marketplace.json` catalog
+- Added documented install flow via `claude plugin marketplace add batikas/results-db-skill`
+- Added validation coverage for marketplace metadata in the test suite
 - Added a root `VERSION` file and a semantic versioning policy
 - Added a publish-ready README for the skill package
 - Replaced the AIOSS-specific example loader with a neutral `populate_example.py`
