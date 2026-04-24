@@ -2,7 +2,7 @@
 
 ## GitHub Repository Structure
 
-For publishing as a standalone skill on GitHub:
+For publishing as a Claude Code plugin repo that can also be added as its own marketplace:
 
 ```
 results-db-skill/
@@ -21,7 +21,8 @@ results-db-skill/
 ├── tests/
 │   └── test_package_skill.py
 ├── .claude-plugin/
-│   └── plugin.json             # Plugin metadata for Claude Code marketplace
+│   ├── plugin.json             # Plugin metadata for Claude Code
+│   └── marketplace.json        # One-plugin marketplace catalog
 ├── .github/
 │   ├── pull_request_template.md
 │   ├── ISSUE_TEMPLATE/
@@ -48,18 +49,57 @@ results-db-skill/
   "description": "Structured results ledger for empirical research papers",
   "author": {
     "name": "Michail Batikas",
-    "email": "mpatikas@gmail.com"
+    "email": "mpatikas@gmail.com",
+    "url": "https://github.com/batikas"
   },
   "version": "1.0.0",
-  "homepage": "https://github.com/batikas/results-db-skill"
+  "homepage": "https://github.com/batikas/results-db-skill",
+  "repository": "https://github.com/batikas/results-db-skill",
+  "license": "MIT",
+  "keywords": ["claude-code", "research", "economics", "results-tracking"],
+  "skills": "./skills"
+}
+```
+
+## marketplace.json
+
+```json
+{
+  "name": "results-db-skill",
+  "owner": {
+    "name": "Michail Batikas",
+    "email": "mpatikas@gmail.com"
+  },
+  "metadata": {
+    "description": "Claude Code marketplace for the results-db research ledger plugin",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "results-db",
+      "source": {
+        "source": "github",
+        "repo": "batikas/results-db-skill"
+      },
+      "description": "Structured results ledger for empirical research papers",
+      "version": "1.0.0"
+    }
+  ]
 }
 ```
 
 ## Installation for others
 
 ```bash
-claude plugin install github:batikas/results-db-skill
+claude plugin marketplace add batikas/results-db-skill
+claude plugin install results-db@results-db-skill
 ```
+
+## Official Anthropic marketplace
+
+To submit this plugin to Anthropic's official marketplace, use the plugin directory submission form:
+
+`https://clau.de/plugin-directory-submission`
 
 ## Publishing to agentskills.io
 

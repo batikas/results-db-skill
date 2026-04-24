@@ -13,6 +13,7 @@ Use this before tagging a new release.
 - Run the CI checks locally if possible
 - Confirm the Python scripts still compile
 - Review the README for any stale examples or paths
+- Validate the plugin/marketplace metadata with `claude plugin validate .` or `/plugin validate .`
 
 ## Tagging
 
@@ -25,3 +26,4 @@ Use this before tagging a new release.
 - Confirm the GitHub release was created
 - Verify the release notes look correct
 - Update any downstream references if needed
+- If you want inclusion in Anthropic's official marketplace, submit the repo through the plugin directory submission form: `https://clau.de/plugin-directory-submission`

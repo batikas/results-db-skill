@@ -20,15 +20,25 @@ For example, if you estimate the same dependent variable with C&S and TWFE, and 
 
 ## Installation
 
-If you are publishing or testing through Claude Code, install the skill from the local repository or GitHub mirror.
+This repo now ships both the plugin manifest and a one-plugin Claude marketplace catalog, so people can install it through the normal Claude marketplace flow.
 
-Example for a GitHub install:
+Add the marketplace from GitHub:
 
 ```bash
-claude plugin install github:batikas/results-db-skill
+claude plugin marketplace add batikas/results-db-skill
 ```
 
-For local development, clone the repo and work from the repository root.
+Install the plugin:
+
+```bash
+claude plugin install results-db@results-db-skill
+```
+
+For local development and testing:
+
+```bash
+claude --plugin-dir .
+```
 
 ## What this skill does
 
@@ -112,7 +122,7 @@ results-db-skill/
     └── publishing.md
 ```
 
-If you are using the installed local Claude skill rather than a published GitHub repo, keep the same commands but drop the `skills/results-db/` prefix.
+If you are using the repo as a local plugin during development, keep the same commands but drop the `skills/results-db/` prefix.
 
 ## Quick start
 

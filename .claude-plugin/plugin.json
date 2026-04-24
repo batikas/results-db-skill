@@ -1,10 +1,21 @@
 {
   "name": "results-db",
   "description": "Structured results ledger for empirical research papers",
+  "version": "1.0.0",
   "author": {
     "name": "Michail Batikas",
-    "email": "mpatikas@gmail.com"
+    "email": "mpatikas@gmail.com",
+    "url": "https://github.com/batikas"
   },
-  "version": "1.0.0",
-  "homepage": "https://github.com/batikas/results-db-skill"
+  "homepage": "https://github.com/batikas/results-db-skill",
+  "repository": "https://github.com/batikas/results-db-skill",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "research",
+    "economics",
+    "results-tracking",
+    "robustness-checks"
+  ],
+  "skills": "./skills"
 }

@@ -31,6 +31,7 @@ class PackageSkillTest(unittest.TestCase):
             with ZipFile(out) as zf:
                 names = set(zf.namelist())
                 self.assertIn("README.md", names)
+                self.assertIn(".claude-plugin/marketplace.json", names)
                 self.assertIn(".github/workflows/ci.yml", names)
                 self.assertIn("skills/results-db/SKILL.md", names)
 
