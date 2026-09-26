@@ -514,7 +514,7 @@ def cmd_add(args):
         "sample"        : args.sample or "",
         "att"           : args.att or "",
         "se"            : args.se or "",
-        "p"             : args.p or "",
+        "p"             : "" if args.p is None else args.p,
         "sig"           : given_sig,
         "n"             : args.n or "",
         "ci_lo"         : args.ci_lo or "",
@@ -558,6 +558,8 @@ def cmd_update(args):
         "honest_did_pass": getattr(args, "honest_did_pass", None),
         "table_file"     : getattr(args, "table_file", None),
         "figure_file"    : getattr(args, "figure_file", None),
+        "p"              : getattr(args, "p", None),
+        "sig"            : getattr(args, "sig", None),
     }
     for r in rows:
         match = False
@@ -1437,6 +1439,8 @@ def cmd_lint(args):
     # 2. sig/p mismatch
     for r in rows:
         try:
+            if "no_p=" in str(r.get("notes","")) or str(r.get("p","")).strip()=="":
+                continue
             p  = float(r.get("p","") or 0)
             sg = r.get("sig","")
             expected = sig_from_p(p)
@@ -1836,6 +1840,7 @@ def build_parser():
     u.add_argument("--pre_trend_test"); u.add_argument("--pre_trend_pass")
     u.add_argument("--honest_did_m"); u.add_argument("--honest_did_pass")
     u.add_argument("--table_file"); u.add_argument("--figure_file")
+    u.add_argument("--p", type=float); u.add_argument("--sig")
 
     # story
     st = sub.add_parser("story")
