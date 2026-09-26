@@ -1336,7 +1336,7 @@ def cmd_check(args):
             with no estimator column matches on dv and sample alone."""
             se = str(e.get("estimator","") or "").strip(); le = str(r.get("estimator","") or "").strip()
             if not se: return True
-return se == le
+            return se == le
         match = next((e for e in estimates
                       if e.get("dv")==r.get("dv")
                       and e.get("sample","Full")==r.get("sample","Full")
