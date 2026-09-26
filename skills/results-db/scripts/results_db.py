@@ -70,7 +70,7 @@ DV_ALIASES   = ["dv", "outcome", "outcome_key", "outcome_col", "variable",
                 "dependent_var", "lhs"]
 SAMPLE_ALIASES = ["sample", "stratum", "group", "subgroup", "stratum_label",
                   "subsample", "label"]
-EST_ALIASES  = ["estimator", "method", "model", "estimator_name"]
+EST_ALIASES  = ["estimator", "method", "model", "estimator_name", "block"]
 LABEL_ALIASES = ["dv_label", "label", "outcome_label", "dv_name", "description"]
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
@@ -1330,10 +1330,17 @@ def cmd_check(args):
             continue
 
         estimates = detect_and_parse(src)
+        def _est_match(e):
+            """A source row that names an estimator must name the ledger row's estimator
+            (compared on the ledger's truncated slot, since add() truncates); a source row
+            with no estimator column matches on dv and sample alone."""
+            se = str(e.get("estimator","") or "").strip(); le = str(r.get("estimator","") or "").strip()
+            if not se: return True
+            return se == le or se.startswith(le) or le.startswith(se)
         match = next((e for e in estimates
                       if e.get("dv")==r.get("dv")
                       and e.get("sample","Full")==r.get("sample","Full")
-                      and (not e.get("estimator") or e.get("estimator")==r.get("estimator"))),
+                      and _est_match(e)),
                      None)
         if match is None:
             continue  # Can't find matching row in source — don't flag
