@@ -139,9 +139,10 @@ def sig_from_p(p) -> str:
         p = float(p)
     except (TypeError, ValueError):
         return ""
-    if p < 0.01: return "***"
-    if p < 0.05: return "**"
-    if p < 0.10: return "*"
+    if p < 0.001: return "***"
+    if p < 0.01:  return "**"
+    if p < 0.05:  return "*"
+    if p < 0.10:  return "+"
     return "n.s."
 
 
@@ -1840,7 +1841,7 @@ def build_parser():
     u.add_argument("--pre_trend_test"); u.add_argument("--pre_trend_pass")
     u.add_argument("--honest_did_m"); u.add_argument("--honest_did_pass")
     u.add_argument("--table_file"); u.add_argument("--figure_file")
-    u.add_argument("--p", type=float); u.add_argument("--sig")
+    u.add_argument("--p", type=lambda v: "" if v == "" else float(v), help="p-value; pass an empty string to clear"); u.add_argument("--sig")
 
     # story
     st = sub.add_parser("story")
